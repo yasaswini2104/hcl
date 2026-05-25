@@ -1,5 +1,7 @@
 package com.bus.booking.booking.service;
 
+import com.bus.booking.booking.entity.Booking;
+
 import com.bus.booking.booking.dto.request.CreateBookingRequest;
 import com.bus.booking.booking.dto.response.BookingResponse;
 
@@ -17,5 +19,5 @@ public interface BookingService {
             String email
     );
 
-    List<BookingResponse> getUserBookings(String email);
+    List<Booking> getUserBookings(String email);
 }
