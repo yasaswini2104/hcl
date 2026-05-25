@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin/routes")
 @RequiredArgsConstructor
@@ -18,9 +20,7 @@ public class RouteController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<Route>>
-    createRoute(
-            @Valid @RequestBody CreateRouteRequest request
-    ) {
+    createRoute(@Valid @RequestBody CreateRouteRequest request) {
 
         Route route = routeService.createRoute(request);
 
@@ -29,6 +29,19 @@ public class RouteController {
                         .success(true)
                         .message("Route created successfully")
                         .data(route)
+                        .build()
+        );
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Route>>>
+    getAllRoutes() {
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<Route>>builder()
+                        .success(true)
+                        .message("Routes fetched successfully")
+                        .data(routeService.getAllRoutes())
                         .build()
         );
     }

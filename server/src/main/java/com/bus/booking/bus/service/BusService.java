@@ -9,10 +9,9 @@ public interface BusService {
 
     Bus createBus(CreateBusRequest request);
 
-    List<Bus> searchBuses(
-            String sourceCity,
-            String destinationCity
-    );
+    List<Bus> searchBuses(String sourceCity, String destinationCity);
 
     Bus getBusById(Long busId);
+
+    List<Bus> getAllBuses();
 }

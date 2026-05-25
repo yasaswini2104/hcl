@@ -1,11 +1,26 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { scheduleService } from "../services/scheduleService";
-import { busService } from "../services/busService";
 import SearchForm from "../components/booking/SearchForm";
 import BusCard from "../components/booking/BusCard";
 import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
+
+const flattenSchedule = (schedule) => ({
+  id: schedule.id, // schedule id — used to navigate to seat selection
+  busId: schedule.bus?.id,
+  scheduleId: schedule.id,
+  busName: schedule.bus?.busName,
+  busNumber: schedule.bus?.busNumber,
+  busType: schedule.bus?.busType,
+  source: schedule.bus?.route?.sourceCity,
+  destination: schedule.bus?.route?.destinationCity,
+  departureTime: schedule.departureTime,
+  arrivalTime: schedule.arrivalTime,
+  fare: schedule.fare,
+  availableSeats: schedule.availableSeats,
+  totalSeats: schedule.bus?.totalSeats,
+});
 
 const SearchResults = () => {
   const [searchParams] = useSearchParams();
@@ -23,41 +38,24 @@ const SearchResults = () => {
     }
     setLoading(true);
 
-    // Try schedule search first; fall back to bus search
-    const params = { source, destination, date };
     scheduleService
-      .search(params)
-      .then(({ data }) => {
-        const list = Array.isArray(data) ? data : data?.content || [];
-        if (list.length) {
-          setResults(list);
-        } else {
-          // fallback to plain bus search
-          return busService.search(params).then(({ data: busData }) => {
-            setResults(Array.isArray(busData) ? busData : busData?.content || []);
-          });
-        }
+      .search({ source, destination, date })
+      .then((response) => {
+        // Backend wraps in ApiResponse: { success, message, data: [...] }
+        const payload = response.data?.data ?? response.data;
+        const list = Array.isArray(payload) ? payload : payload?.content || [];
+        setResults(list.map(flattenSchedule));
       })
-      .catch(() => {
-        // fallback to bus search on schedule error
-        busService
-          .search(params)
-          .then(({ data }) =>
-            setResults(Array.isArray(data) ? data : data?.content || [])
-          )
-          .catch(() => setResults([]));
-      })
+      .catch(() => setResults([]))
       .finally(() => setLoading(false));
   }, [source, destination, date]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Search bar */}
       <div className="mb-6">
         <SearchForm initial={{ source, destination, date }} compact />
       </div>
 
-      {/* Heading */}
       {source && destination && (
         <div className="mb-4 flex items-baseline justify-between">
           <h2 className="text-lg md:text-xl font-bold text-gray-900">
@@ -71,7 +69,6 @@ const SearchResults = () => {
         </div>
       )}
 
-      {/* Body */}
       {loading ? (
         <Loader message="Searching for buses..." />
       ) : !source || !destination ? (
@@ -89,7 +86,7 @@ const SearchResults = () => {
       ) : (
         <div className="space-y-3">
           {results.map((bus) => (
-            <BusCard key={bus.id || bus.scheduleId} bus={bus} />
+            <BusCard key={bus.scheduleId} bus={bus} />
           ))}
         </div>
       )}

@@ -5,13 +5,13 @@ import { STORAGE_KEYS, ROLES } from "../utils/constants";
 import { decodeJwt, isTokenExpired } from "../utils/jwt";
 
 const AuthContext = createContext(null);
+const unwrap = (response) => response.data?.data ?? response.data;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
     const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
@@ -26,7 +26,6 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } else {
-      // Cleanup expired
       localStorage.removeItem(STORAGE_KEYS.TOKEN);
       localStorage.removeItem(STORAGE_KEYS.USER);
     }
@@ -34,18 +33,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (credentials) => {
-    const { data } = await authService.login(credentials);
-    // Expected backend response: { token, user: { id, name, email, role } }
-    const receivedToken = data.token || data.accessToken;
-    let receivedUser = data.user;
+    const response = await authService.login(credentials);
+    const payload = unwrap(response);
 
-    // Fallback: derive user info from JWT if backend didn't send it
-    if (!receivedUser && receivedToken) {
+    const receivedToken = payload?.token;
+    if (!receivedToken) {
+      throw new Error("Login response missing token");
+    }
+
+    //Map backend roles (ROLE_USER / ROLE_ADMIN) to our frontend role
+    const backendRoles = payload?.roles || [];
+    const role = backendRoles.includes("ROLE_ADMIN") ? ROLES.ADMIN : ROLES.USER;
+
+    let receivedUser = {
+      email: payload.email,
+      name: payload.fullName,
+      role,
+    };
+
+    if (!receivedUser.email && receivedToken) {
       const decoded = decodeJwt(receivedToken);
       receivedUser = {
-        email: decoded?.sub || decoded?.email,
-        role: decoded?.role || decoded?.roles?.[0] || ROLES.USER,
-        name: decoded?.name || decoded?.sub,
+        ...receivedUser,
+        email: receivedUser.email || decoded?.sub,
+        name: receivedUser.name || decoded?.sub,
       };
     }
 
@@ -53,14 +64,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(receivedUser));
     setToken(receivedToken);
     setUser(receivedUser);
-    toast.success(`Welcome back, ${receivedUser?.name || "user"}!`);
+
+    toast.success(`Welcome back, ${receivedUser.name || receivedUser.email}!`);
     return receivedUser;
   };
 
   const register = async (payload) => {
-    const { data } = await authService.register(payload);
+    const response = await authService.register(payload);
+    unwrap(response); 
     toast.success("Account created. Please log in.");
-    return data;
   };
 
   const logout = useCallback(() => {
@@ -88,7 +100,6 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");

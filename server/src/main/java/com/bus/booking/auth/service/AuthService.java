@@ -1,4 +1,5 @@
 package com.bus.booking.auth.service;
+
 import com.bus.booking.auth.dto.request.LoginRequest;
 import com.bus.booking.auth.dto.request.RegisterRequest;
 import com.bus.booking.auth.dto.response.AuthResponse;
@@ -18,7 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,68 +29,48 @@ import java.util.Set;
 public class AuthService {
 
     private final UserRepository userRepository;
-
     private final RoleRepository roleRepository;
-
     private final PasswordEncoder passwordEncoder;
-
     private final JwtUtil jwtUtil;
-
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse register(RegisterRequest request) {
 
-        log.info("Register request received for email: {}",
-                request.getEmail());
+        log.info("Register request received for email: {}", request.getEmail());
 
         if (userRepository.existsByEmail(request.getEmail())) {
-
-            log.error("Email already exists: {}",
-                    request.getEmail());
-
-            throw new RuntimeException(
-                    "Email already registered"
-            );
+            log.error("Email already exists: {}", request.getEmail());
+            throw new RuntimeException("Email already registered");
         }
+
         Role userRole = roleRepository
                 .findByRoleName(RoleType.ROLE_USER)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Default role not found"
-                        ));
+                .orElseThrow(() -> new RuntimeException("Default role not found"));
 
         Set<Role> roles = new HashSet<>();
         roles.add(userRole);
+
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .phoneNumber(request.getPhoneNumber())
-                .password(
-                        passwordEncoder.encode(
-                                request.getPassword()
-                        )
-                )
+                .password(passwordEncoder.encode(request.getPassword()))
                 .roles(roles)
                 .isActive(true)
                 .build();
 
         userRepository.save(user);
 
-        log.info("User registered successfully: {}",
-                user.getEmail());
-        String token =
-                jwtUtil.generateToken(user.getEmail());
+        log.info("User registered successfully: {}", user.getEmail());
 
-        return AuthResponse.builder()
-                .token(token)
-                .message("Registration successful")
-                .build();
+        String token = jwtUtil.generateToken(user.getEmail());
+
+        return buildAuthResponse(user, token, "Registration successful");
     }
 
     public AuthResponse login(LoginRequest request) {
 
-        log.info("Login request received for email: {}",
-                request.getEmail());
+        log.info("Login request received for email: {}", request.getEmail());
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -98,20 +81,28 @@ public class AuthService {
 
         User user = userRepository
                 .findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "User not found"
-                        ));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String token =
-                jwtUtil.generateToken(user.getEmail());
+        String token = jwtUtil.generateToken(user.getEmail());
 
-        log.info("Login successful for user: {}",
-                user.getEmail());
+        log.info("Login successful for user: {}", user.getEmail());
+
+        return buildAuthResponse(user, token, "Login successful");
+    }
+
+    private AuthResponse buildAuthResponse(User user, String token, String message) {
+
+        List<String> roleNames = user.getRoles()
+                .stream()
+                .map(role -> role.getRoleName().name())
+                .collect(Collectors.toList());
 
         return AuthResponse.builder()
                 .token(token)
-                .message("Login successful")
+                .message(message)
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .roles(roleNames)
                 .build();
     }
 }

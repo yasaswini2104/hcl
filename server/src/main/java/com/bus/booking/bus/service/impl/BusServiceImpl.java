@@ -6,10 +6,14 @@ import com.bus.booking.bus.repository.BusRepository;
 import com.bus.booking.bus.service.BusService;
 import com.bus.booking.route.entity.Route;
 import com.bus.booking.route.repository.RouteRepository;
+import com.bus.booking.seat.entity.Seat;
+import com.bus.booking.seat.repository.SeatRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -19,8 +23,10 @@ public class BusServiceImpl implements BusService {
 
     private final BusRepository busRepository;
     private final RouteRepository routeRepository;
+    private final SeatRepository seatRepository;
 
     @Override
+    @Transactional
     public Bus createBus(CreateBusRequest request) {
 
         Route route = routeRepository.findById(request.getRouteId())
@@ -38,8 +44,37 @@ public class BusServiceImpl implements BusService {
 
         busRepository.save(bus);
 
+        //Auto-create seats for this bus
+        int totalSeats = request.getTotalSeats() != null
+                ? request.getTotalSeats()
+                : 40;
+
+        List<Seat> seats = new ArrayList<>();
+
+        for (int i = 1; i <= totalSeats; i++) {
+            //Label seats like A1, A2, A3, A4, B1, B2... (4 per row)
+            char rowLetter = (char) ('A' + ((i - 1) / 4));
+            int colNumber = ((i - 1) % 4) + 1;
+            String seatNumber = "" + rowLetter + colNumber;
+
+            String seatType = (i % 4 == 1 || i % 4 == 0)
+                    ? "WINDOW"
+                    : "AISLE";
+
+            seats.add(
+                    Seat.builder()
+                            .seatNumber(seatNumber)
+                            .seatType(seatType)
+                            .bus(bus)
+                            .build()
+            );
+        }
+
+        seatRepository.saveAll(seats);
+
         log.info(
-                "Bus created successfully: {}",
+                "Bus created with {} seats: {}",
+                seats.size(),
                 bus.getBusNumber()
         );
 
@@ -71,5 +106,10 @@ public class BusServiceImpl implements BusService {
         return busRepository.findById(busId)
                 .orElseThrow(() ->
                         new RuntimeException("Bus not found"));
+    }
+
+    @Override
+    public List<Bus> getAllBuses() {
+        return busRepository.findAll();
     }
 }

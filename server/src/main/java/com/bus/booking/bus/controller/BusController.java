@@ -20,9 +20,7 @@ public class BusController {
 
     @PostMapping("/admin")
     public ResponseEntity<ApiResponse<Bus>>
-    createBus(
-            @Valid @RequestBody CreateBusRequest request
-    ) {
+    createBus(@Valid @RequestBody CreateBusRequest request) {
 
         Bus bus = busService.createBus(request);
 
@@ -35,6 +33,19 @@ public class BusController {
         );
     }
 
+    @GetMapping("/admin")
+    public ResponseEntity<ApiResponse<List<Bus>>>
+    getAllBuses() {
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<Bus>>builder()
+                        .success(true)
+                        .message("Buses fetched successfully")
+                        .data(busService.getAllBuses())
+                        .build()
+        );
+    }
+
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<Bus>>>
     searchBuses(
@@ -42,10 +53,7 @@ public class BusController {
             @RequestParam String destinationCity
     ) {
 
-        List<Bus> buses = busService.searchBuses(
-                sourceCity,
-                destinationCity
-        );
+        List<Bus> buses = busService.searchBuses(sourceCity, destinationCity);
 
         return ResponseEntity.ok(
                 ApiResponse.<List<Bus>>builder()

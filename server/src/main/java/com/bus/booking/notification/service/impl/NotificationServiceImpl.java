@@ -18,8 +18,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class NotificationServiceImpl
-        implements NotificationService {
+public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
@@ -106,35 +105,11 @@ public class NotificationServiceImpl
                                 .id(notification.getId())
                                 .title(notification.getTitle())
                                 .message(notification.getMessage())
-                                .notificationType(
-                                        notification.getNotificationType()
-                                )
+                                .notificationType(notification.getNotificationType())
                                 .isRead(notification.getIsRead())
+                                .createdAt(notification.getCreatedAt())
                                 .build()
                 )
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public void markNotificationAsRead(
-            Long notificationId
-    ) {
-
-        Notification notification =
-                notificationRepository.findById(notificationId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Notification not found"
-                                )
-                        );
-
-        notification.setIsRead(true);
-
-        notificationRepository.save(notification);
-
-        log.info(
-                "Notification marked as read: {}",
-                notificationId
-        );
     }
 }

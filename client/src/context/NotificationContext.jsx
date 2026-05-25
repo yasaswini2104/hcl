@@ -4,6 +4,23 @@ import { useAuth } from "./AuthContext";
 
 const NotificationContext = createContext(null);
 
+// Backend wraps in ApiResponse { success, message, data: [...] }
+const unwrapList = (response) => {
+  const payload = response.data?.data ?? response.data;
+  if (Array.isArray(payload)) return payload;
+  return payload?.content || [];
+};
+
+// Backend returns `isRead`; UI reads `read` — normalize once here.
+const normalize = (notification) => ({
+  id: notification.id,
+  title: notification.title,
+  message: notification.message,
+  notificationType: notification.notificationType,
+  read: notification.isRead ?? notification.read ?? false,
+  createdAt: notification.createdAt,
+});
+
 export const NotificationProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
@@ -13,10 +30,10 @@ export const NotificationProvider = ({ children }) => {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const { data } = await notificationService.list();
-      setNotifications(Array.isArray(data) ? data : data?.content || []);
+      const response = await notificationService.list();
+      setNotifications(unwrapList(response).map(normalize));
     } catch {
-      // Silent — toast already shown by interceptor if server error
+      // Silent — global interceptor handles toast
     } finally {
       setLoading(false);
     }

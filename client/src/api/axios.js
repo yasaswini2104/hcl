@@ -22,11 +22,14 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle 401 / errors
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const method = (error.config?.method || "get").toLowerCase();
+    const isReadRequest = method === "get";
+
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||
@@ -34,14 +37,14 @@ api.interceptors.response.use(
       "Something went wrong";
 
     if (status === 401) {
-      // Token expired or invalid — auto logout
       localStorage.removeItem(STORAGE_KEYS.TOKEN);
       localStorage.removeItem(STORAGE_KEYS.USER);
       if (window.location.pathname !== "/login") {
         toast.error("Session expired. Please log in again.");
         window.location.href = "/login";
       }
-    } else if (status === 403) {
+    } else if (status === 403 && !isReadRequest) {
+      // Only complain about 403 on user actions, not background loads
       toast.error("You don't have permission to do that.");
     } else if (status >= 500) {
       toast.error("Server error. Please try again later.");

@@ -7,14 +7,20 @@ import Input from "../../components/common/Input";
 import Loader from "../../components/common/Loader";
 import EmptyState from "../../components/common/EmptyState";
 
+// Backend wraps everything in ApiResponse { success, message, data }
+const unwrapList = (response) => {
+  const payload = response.data?.data ?? response.data;
+  if (Array.isArray(payload)) return payload;
+  return payload?.content || [];
+};
+
 const ManageRoutes = () => {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
-    source: "",
-    destination: "",
-    distance: "",
-    duration: "",
+    sourceCity: "",
+    destinationCity: "",
+    distanceKm: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,9 +28,7 @@ const ManageRoutes = () => {
     setLoading(true);
     adminService
       .listRoutes()
-      .then(({ data }) =>
-        setRoutes(Array.isArray(data) ? data : data?.content || [])
-      )
+      .then((response) => setRoutes(unwrapList(response)))
       .catch(() => setRoutes([]))
       .finally(() => setLoading(false));
   };
@@ -35,18 +39,19 @@ const ManageRoutes = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!form.source || !form.destination) {
-      toast.warning("Source and destination are required");
+    if (!form.sourceCity || !form.destinationCity || !form.distanceKm) {
+      toast.warning("Source, destination and distance are required");
       return;
     }
     setSubmitting(true);
     try {
       await adminService.createRoute({
-        ...form,
-        distance: Number(form.distance) || 0,
+        sourceCity: form.sourceCity,
+        destinationCity: form.destinationCity,
+        distanceKm: Number(form.distanceKm),
       });
       toast.success("Route added");
-      setForm({ source: "", destination: "", distance: "", duration: "" });
+      setForm({ sourceCity: "", destinationCity: "", distanceKm: "" });
       fetchRoutes();
     } catch (error) {
       toast.error(error.message || "Failed to add route");
@@ -63,33 +68,29 @@ const ManageRoutes = () => {
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Form */}
         <Card className="p-5 lg:col-span-1">
           <h2 className="font-semibold text-gray-900 mb-4">Add new route</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
             <Input
               label="Source"
               placeholder="e.g. Hyderabad"
-              value={form.source}
-              onChange={(e) => setForm({ ...form, source: e.target.value })}
+              value={form.sourceCity}
+              onChange={(e) => setForm({ ...form, sourceCity: e.target.value })}
             />
             <Input
               label="Destination"
               placeholder="e.g. Bengaluru"
-              value={form.destination}
-              onChange={(e) => setForm({ ...form, destination: e.target.value })}
+              value={form.destinationCity}
+              onChange={(e) =>
+                setForm({ ...form, destinationCity: e.target.value })
+              }
             />
             <Input
               label="Distance (km)"
               type="number"
-              value={form.distance}
-              onChange={(e) => setForm({ ...form, distance: e.target.value })}
-            />
-            <Input
-              label="Duration"
-              placeholder="e.g. 9h 30m"
-              value={form.duration}
-              onChange={(e) => setForm({ ...form, duration: e.target.value })}
+              min="1"
+              value={form.distanceKm}
+              onChange={(e) => setForm({ ...form, distanceKm: e.target.value })}
             />
             <Button type="submit" loading={submitting} className="w-full">
               Add Route
@@ -97,7 +98,6 @@ const ManageRoutes = () => {
           </form>
         </Card>
 
-        {/* List */}
         <div className="lg:col-span-2">
           <h2 className="font-semibold text-gray-900 mb-3">Existing routes</h2>
           {loading ? (
@@ -117,18 +117,16 @@ const ManageRoutes = () => {
                       <th className="px-4 py-3 font-semibold text-gray-700">From</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">To</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">Distance</th>
-                      <th className="px-4 py-3 font-semibold text-gray-700">Duration</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {routes.map((route) => (
                       <tr key={route.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">{route.source}</td>
-                        <td className="px-4 py-3">{route.destination}</td>
-                        <td className="px-4 py-3">
-                          {route.distance ? `${route.distance} km` : "—"}
+                        <td className="px-4 py-3 text-gray-900">{route.sourceCity}</td>
+                        <td className="px-4 py-3 text-gray-900">{route.destinationCity}</td>
+                        <td className="px-4 py-3 text-gray-900">
+                          {route.distanceKm ? `${route.distanceKm} km` : "—"}
                         </td>
-                        <td className="px-4 py-3">{route.duration || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -18,25 +18,20 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
-    ) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
-
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
-                        )
-                )
-
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/buses/search",
+                                "/api/buses/{busId}",
                                 "/api/schedules/search",
+                                "/api/schedules/{scheduleId}",
+                                "/api/seats/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
@@ -47,10 +42,8 @@ public class SecurityConfig {
                                 "/api/schedules/admin"
                         ).hasRole("ADMIN")
 
-                        .anyRequest()
-                        .authenticated()
+                        .anyRequest().authenticated()
                 )
-
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class

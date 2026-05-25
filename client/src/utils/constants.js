@@ -25,6 +25,11 @@ export const ENDPOINTS = {
 
   // Schedules
   SCHEDULE_SEARCH: "/schedules/search",
+  SCHEDULE_BY_ID: (id) => `/schedules/${id}`,
+
+  // Seats
+  SEATS_FOR_SCHEDULE: (busId, scheduleId) =>
+    `/seats/bus/${busId}/schedule/${scheduleId}`,
 
   // Bookings
   BOOKINGS: "/bookings",

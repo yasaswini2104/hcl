@@ -20,9 +20,6 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * REGISTER USER
-     */
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>>
     registerUser(
@@ -41,9 +38,6 @@ public class AuthController {
         );
     }
 
-    /**
-     * LOGIN USER
-     */
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>>
     loginUser(
@@ -62,9 +56,6 @@ public class AuthController {
         );
     }
 
-    /**
-     * TEST SECURED API
-     */
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<String>>
     currentUser() {

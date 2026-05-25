@@ -20,18 +20,28 @@ public class ScheduleController {
 
     @PostMapping("/admin")
     public ResponseEntity<ApiResponse<Schedule>>
-    createSchedule(
-            @RequestBody CreateScheduleRequest request
-    ) {
+    createSchedule(@RequestBody CreateScheduleRequest request) {
 
-        Schedule schedule =
-                scheduleService.createSchedule(request);
+        Schedule schedule = scheduleService.createSchedule(request);
 
         return ResponseEntity.ok(
                 ApiResponse.<Schedule>builder()
                         .success(true)
                         .message("Schedule created successfully")
                         .data(schedule)
+                        .build()
+        );
+    }
+
+    @GetMapping("/admin")
+    public ResponseEntity<ApiResponse<List<Schedule>>>
+    getAllSchedules() {
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<Schedule>>builder()
+                        .success(true)
+                        .message("Schedules fetched successfully")
+                        .data(scheduleService.getAllSchedules())
                         .build()
         );
     }
@@ -44,18 +54,26 @@ public class ScheduleController {
             @RequestParam LocalDate travelDate
     ) {
 
-        List<Schedule> schedules =
-                scheduleService.searchSchedules(
-                        sourceCity,
-                        destinationCity,
-                        travelDate
-                );
-
         return ResponseEntity.ok(
                 ApiResponse.<List<Schedule>>builder()
                         .success(true)
                         .message("Schedules fetched successfully")
-                        .data(schedules)
+                        .data(scheduleService.searchSchedules(
+                                sourceCity, destinationCity, travelDate
+                        ))
+                        .build()
+        );
+    }
+
+    @GetMapping("/{scheduleId}")
+    public ResponseEntity<ApiResponse<Schedule>>
+    getScheduleById(@PathVariable Long scheduleId) {
+
+        return ResponseEntity.ok(
+                ApiResponse.<Schedule>builder()
+                        .success(true)
+                        .message("Schedule fetched successfully")
+                        .data(scheduleService.getScheduleById(scheduleId))
                         .build()
         );
     }

@@ -15,4 +15,8 @@ public interface ScheduleService {
             String destinationCity,
             LocalDate travelDate
     );
+
+    List<Schedule> getAllSchedules();
+
+    Schedule getScheduleById(Long id);
 }

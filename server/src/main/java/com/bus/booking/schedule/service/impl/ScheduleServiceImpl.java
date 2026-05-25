@@ -66,4 +66,15 @@ public class ScheduleServiceImpl
                         travelDate
                 );
     }
+
+    @Override
+    public List<Schedule> getAllSchedules() {
+        return scheduleRepository.findAll();
+    }
+
+    @Override
+    public Schedule getScheduleById(Long id) {
+        return scheduleRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Schedule not found"));
+    }
 }

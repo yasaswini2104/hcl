@@ -2,13 +2,12 @@ import { Link } from "react-router-dom";
 import { formatCurrency, formatTime } from "../../utils/formatters";
 
 const BusCard = ({ bus }) => {
-  // Flexible shape — works with either bus or schedule payload from backend
-  const id = bus.id || bus.busId || bus.scheduleId;
+  const scheduleId = bus.scheduleId || bus.id;
   const name = bus.busName || bus.name || bus.operator || "Bus";
   const number = bus.busNumber || bus.number || "";
   const type = bus.busType || bus.type || "AC Sleeper";
-  const from = bus.source || bus.from || bus.route?.source;
-  const to = bus.destination || bus.to || bus.route?.destination;
+  const from = bus.source || bus.from || bus.route?.sourceCity;
+  const to = bus.destination || bus.to || bus.route?.destinationCity;
   const departure = bus.departureTime || bus.departure;
   const arrival = bus.arrivalTime || bus.arrival;
   const fare = bus.fare || bus.price || 0;
@@ -17,13 +16,10 @@ const BusCard = ({ bus }) => {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition p-4 md:p-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        {/* Left: Bus info */}
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-gray-900">{name}</h3>
-            {number && (
-              <span className="text-xs text-gray-500">• {number}</span>
-            )}
+            {number && <span className="text-xs text-gray-500">• {number}</span>}
           </div>
           <p className="text-xs text-gray-500 mt-0.5">{type}</p>
 
@@ -44,7 +40,6 @@ const BusCard = ({ bus }) => {
           </div>
         </div>
 
-        {/* Right: Price + CTA */}
         <div className="md:text-right border-t md:border-t-0 md:border-l md:pl-5 pt-3 md:pt-0">
           <div className="text-xs text-gray-500">Starting from</div>
           <div className="text-xl font-bold text-primary-700">
@@ -54,7 +49,7 @@ const BusCard = ({ bus }) => {
             {availableSeats} seats left
           </div>
           <Link
-            to={`/bus/${id}`}
+            to={`/bus/${scheduleId}`}
             className="inline-block px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg"
           >
             View Seats

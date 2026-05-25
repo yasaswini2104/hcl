@@ -3,6 +3,13 @@ import { adminService } from "../../services/adminService";
 import Card from "../../components/common/Card";
 import Loader from "../../components/common/Loader";
 
+// Unwrap backend's ApiResponse { success, message, data }
+const unwrapList = (response) => {
+  const payload = response.data?.data ?? response.data;
+  if (Array.isArray(payload)) return payload;
+  return payload?.content || [];
+};
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState({ routes: 0, buses: 0, schedules: 0 });
   const [loading, setLoading] = useState(true);
@@ -14,11 +21,8 @@ const AdminDashboard = () => {
       adminService.listSchedules(),
     ])
       .then((results) => {
-        const count = (result) => {
-          if (result.status !== "fulfilled") return 0;
-          const { data } = result.value;
-          return Array.isArray(data) ? data.length : data?.content?.length || 0;
-        };
+        const count = (result) =>
+          result.status === "fulfilled" ? unwrapList(result.value).length : 0;
         setStats({
           routes: count(results[0]),
           buses: count(results[1]),
@@ -39,9 +43,7 @@ const AdminDashboard = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Admin Dashboard</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        System overview at a glance
-      </p>
+      <p className="text-sm text-gray-500 mb-6">System overview at a glance</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {cards.map((card) => (

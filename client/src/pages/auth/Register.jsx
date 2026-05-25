@@ -9,9 +9,9 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: "",
+    fullName: "",
     email: "",
-    phone: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -20,11 +20,12 @@ const Register = () => {
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = "Name is required";
+    if (!form.fullName.trim()) e.fullName = "Name is required";
     if (!form.email) e.email = "Email is required";
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Invalid email";
-    if (!form.phone) e.phone = "Phone is required";
-    else if (!/^\d{10}$/.test(form.phone)) e.phone = "Enter a 10-digit phone number";
+    if (!form.phoneNumber) e.phoneNumber = "Phone is required";
+    else if (!/^\d{10}$/.test(form.phoneNumber))
+      e.phoneNumber = "Enter a 10-digit phone number";
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 6) e.password = "Min 6 characters";
     if (form.password !== form.confirmPassword)
@@ -63,9 +64,9 @@ const Register = () => {
         <Input
           label="Full name"
           placeholder="John Doe"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          error={errors.name}
+          value={form.fullName}
+          onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+          error={errors.fullName}
         />
         <Input
           label="Email"
@@ -78,11 +79,14 @@ const Register = () => {
         <Input
           label="Phone"
           placeholder="10-digit number"
-          value={form.phone}
+          value={form.phoneNumber}
           onChange={(e) =>
-            setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })
+            setForm({
+              ...form,
+              phoneNumber: e.target.value.replace(/\D/g, "").slice(0, 10),
+            })
           }
-          error={errors.phone}
+          error={errors.phoneNumber}
         />
         <Input
           label="Password"

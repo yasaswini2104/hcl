@@ -9,44 +9,59 @@ import EmptyState from "../../components/common/EmptyState";
 
 const BUS_TYPES = ["AC Sleeper", "Non-AC Sleeper", "AC Seater", "Non-AC Seater", "Volvo"];
 
+const unwrapList = (response) => {
+  const payload = response.data?.data ?? response.data;
+  if (Array.isArray(payload)) return payload;
+  return payload?.content || [];
+};
+
 const ManageBuses = () => {
   const [buses, setBuses] = useState([]);
+  const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     busName: "",
     busNumber: "",
     busType: BUS_TYPES[0],
     totalSeats: 40,
-    operator: "",
+    operatorName: "",
+    routeId: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchBuses = () => {
+  const fetchAll = async () => {
     setLoading(true);
-    adminService
-      .listBuses()
-      .then(({ data }) =>
-        setBuses(Array.isArray(data) ? data : data?.content || [])
-      )
-      .catch(() => setBuses([]))
-      .finally(() => setLoading(false));
+    try {
+      const [busResp, routeResp] = await Promise.allSettled([
+        adminService.listBuses(),
+        adminService.listRoutes(),
+      ]);
+      setBuses(busResp.status === "fulfilled" ? unwrapList(busResp.value) : []);
+      setRoutes(routeResp.status === "fulfilled" ? unwrapList(routeResp.value) : []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchBuses();
+    fetchAll();
   }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!form.busName || !form.busNumber) {
-      toast.warning("Bus name and number are required");
+    if (!form.busName || !form.busNumber || !form.routeId) {
+      toast.warning("Bus name, number and route are required");
       return;
     }
     setSubmitting(true);
     try {
       await adminService.createBus({
-        ...form,
+        busNumber: form.busNumber,
+        busName: form.busName,
+        busType: form.busType,
         totalSeats: Number(form.totalSeats),
+        operatorName: form.operatorName,
+        routeId: Number(form.routeId),
       });
       toast.success("Bus added");
       setForm({
@@ -54,9 +69,10 @@ const ManageBuses = () => {
         busNumber: "",
         busType: BUS_TYPES[0],
         totalSeats: 40,
-        operator: "",
+        operatorName: "",
+        routeId: "",
       });
-      fetchBuses();
+      fetchAll();
     } catch (error) {
       toast.error(error.message || "Failed to add bus");
     } finally {
@@ -92,7 +108,7 @@ const ManageBuses = () => {
                 Bus type
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 text-gray-900"
                 value={form.busType}
                 onChange={(e) => setForm({ ...form, busType: e.target.value })}
               >
@@ -111,11 +127,35 @@ const ManageBuses = () => {
               onChange={(e) => setForm({ ...form, totalSeats: e.target.value })}
             />
             <Input
-              label="Operator"
+              label="Operator name"
               placeholder="Operator name"
-              value={form.operator}
-              onChange={(e) => setForm({ ...form, operator: e.target.value })}
+              value={form.operatorName}
+              onChange={(e) =>
+                setForm({ ...form, operatorName: e.target.value })
+              }
             />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Route
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 text-gray-900"
+                value={form.routeId}
+                onChange={(e) => setForm({ ...form, routeId: e.target.value })}
+              >
+                <option value="">Select route</option>
+                {routes.map((route) => (
+                  <option key={route.id} value={route.id}>
+                    {route.sourceCity} → {route.destinationCity}
+                  </option>
+                ))}
+              </select>
+              {routes.length === 0 && (
+                <p className="mt-1 text-xs text-amber-600">
+                  No routes available — add a route first.
+                </p>
+              )}
+            </div>
             <Button type="submit" loading={submitting} className="w-full">
               Add Bus
             </Button>
@@ -142,17 +182,23 @@ const ManageBuses = () => {
                       <th className="px-4 py-3 font-semibold text-gray-700">Number</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">Type</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">Seats</th>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Route</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {buses.map((bus) => (
                       <tr key={bus.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-900">
-                          {bus.busName || bus.name}
+                          {bus.busName}
                         </td>
-                        <td className="px-4 py-3">{bus.busNumber || bus.number}</td>
-                        <td className="px-4 py-3">{bus.busType || bus.type}</td>
-                        <td className="px-4 py-3">{bus.totalSeats}</td>
+                        <td className="px-4 py-3 text-gray-900">{bus.busNumber}</td>
+                        <td className="px-4 py-3 text-gray-900">{bus.busType}</td>
+                        <td className="px-4 py-3 text-gray-900">{bus.totalSeats}</td>
+                        <td className="px-4 py-3 text-gray-900">
+                          {bus.route
+                            ? `${bus.route.sourceCity} → ${bus.route.destinationCity}`
+                            : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

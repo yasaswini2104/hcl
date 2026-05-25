@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { busService } from "../services/busService";
+import { scheduleService } from "../services/scheduleService";
 import { bookingService } from "../services/bookingService";
 import { useAuth } from "../context/AuthContext";
 import SeatLayout from "../components/booking/SeatLayout";
@@ -11,67 +11,51 @@ import Button from "../components/common/Button";
 import Input from "../components/common/Input";
 import Modal from "../components/common/Modal";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
-import { SEAT_STATUS } from "../utils/constants";
 
-// Generate a fallback seat layout if backend doesn't provide one
-const generateFallbackSeats = (total = 40, bookedSeatIds = []) => {
-  const seats = [];
-  const rows = Math.ceil(total / 4);
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < 4; c++) {
-      const idx = r * 4 + c;
-      if (idx >= total) break;
-      const label = `${String.fromCharCode(65 + r)}${c + 1}`;
-      const id = label;
-      seats.push({
-        id,
-        label,
-        status: bookedSeatIds.includes(id)
-          ? SEAT_STATUS.BOOKED
-          : SEAT_STATUS.AVAILABLE,
-      });
-    }
-  }
-  return seats;
-};
+const unwrap = (response) => response.data?.data ?? response.data;
 
 const BusDetails = () => {
-  const { id } = useParams();
+  const { id: scheduleId } = useParams(); // URL param is actually a scheduleId
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  const [bus, setBus] = useState(null);
+  const [schedule, setSchedule] = useState(null);
+  const [seats, setSeats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [showPassengerModal, setShowPassengerModal] = useState(false);
-  const [passenger, setPassenger] = useState({ name: "", age: "", gender: "M" });
+  const [passenger, setPassenger] = useState({ name: "", age: "", gender: "Male" });
   const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    busService
-      .getById(id)
-      .then(({ data }) => setBus(data))
-      .catch((error) => toast.error(error.message || "Failed to load bus"))
-      .finally(() => setLoading(false));
-  }, [id]);
 
-  const seats = useMemo(() => {
-    if (!bus) return [];
-    if (Array.isArray(bus.seats) && bus.seats.length) {
-      return bus.seats.map((seat) => ({
-        id: seat.id ?? seat.seatId ?? seat.label,
-        label: seat.label ?? seat.seatNumber ?? seat.id,
-        status:
-          seat.status ||
-          (seat.booked ? SEAT_STATUS.BOOKED : SEAT_STATUS.AVAILABLE),
-      }));
-    }
-    return generateFallbackSeats(
-      bus.totalSeats || 40,
-      bus.bookedSeats || []
-    );
-  }, [bus]);
+    scheduleService
+      .getById(scheduleId)
+      .then((response) => {
+        if (cancelled) return null;
+        const sched = unwrap(response);
+        setSchedule(sched);
+        // Now fetch seats for this bus + schedule
+        return scheduleService.getSeats(sched.bus.id, sched.id);
+      })
+      .then((response) => {
+        if (cancelled || !response) return;
+        const seatList = unwrap(response);
+        setSeats(Array.isArray(seatList) ? seatList : []);
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(error.message || "Failed to load schedule");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduleId]);
 
   const toggleSeat = (seatId) => {
     setSelectedSeats((prev) =>
@@ -79,13 +63,27 @@ const BusDetails = () => {
     );
   };
 
-  const fare = bus?.fare || bus?.price || 0;
+  const fare = schedule?.fare || 0;
   const totalAmount = fare * selectedSeats.length;
+
+  // Display fields from nested schedule shape
+  const busName = schedule?.bus?.busName || "Bus";
+  const busType = schedule?.bus?.busType || "";
+  const busNumber = schedule?.bus?.busNumber || "";
+  const fromCity = schedule?.bus?.route?.sourceCity || "";
+  const toCity = schedule?.bus?.route?.destinationCity || "";
+
+  const selectedLabels = useMemo(() => {
+    return seats
+      .filter((seat) => selectedSeats.includes(seat.id))
+      .map((seat) => seat.label)
+      .join(", ");
+  }, [seats, selectedSeats]);
 
   const handleProceed = () => {
     if (!isAuthenticated) {
       toast.info("Please login to continue");
-      navigate("/login", { state: { from: { pathname: `/bus/${id}` } } });
+      navigate("/login", { state: { from: { pathname: `/bus/${scheduleId}` } } });
       return;
     }
     if (selectedSeats.length === 0) {
@@ -102,15 +100,18 @@ const BusDetails = () => {
     }
     setBookingLoading(true);
     try {
-      const payload = {
-        busId: bus.id || id,
-        scheduleId: bus.scheduleId,
-        seatIds: selectedSeats,
-        seatNumbers: selectedSeats, // alternative shape for backend
-        passenger,
-        totalAmount,
-      };
-      await bookingService.create(payload);
+      // Build a passenger entry per selected seat
+      const passengers = selectedSeats.map((seatId) => ({
+        seatId,
+        passengerName: passenger.name,
+        passengerAge: Number(passenger.age),
+        passengerGender: passenger.gender,
+      }));
+
+      await bookingService.create({
+        scheduleId: Number(scheduleId),
+        passengers,
+      });
       toast.success("Booking confirmed! 🎉");
       setShowPassengerModal(false);
       navigate("/my-bookings");
@@ -121,37 +122,40 @@ const BusDetails = () => {
     }
   };
 
-  if (loading) return <Loader message="Loading bus details..." />;
-  if (!bus)
+  if (loading) return <Loader message="Loading schedule details..." />;
+  if (!schedule)
     return (
       <div className="max-w-7xl mx-auto px-4 py-12 text-center text-gray-500">
-        Bus not found.
+        Schedule not found.
       </div>
     );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Header card */}
       <Card className="p-5 mb-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {bus.busName || bus.name || "Bus"}
-            </h1>
+            <h1 className="text-xl font-bold text-gray-900">{busName}</h1>
             <p className="text-sm text-gray-500">
-              {bus.busType || "AC Sleeper"} • {bus.busNumber || ""}
+              {busType} {busNumber && `• ${busNumber}`}
             </p>
             <p className="text-sm text-gray-700 mt-2">
-              {bus.source || bus.from} → {bus.destination || bus.to}
+              {fromCity} → {toCity}
             </p>
             <p className="text-xs text-gray-500">
-              Departure: {formatDateTime(bus.departureTime || bus.departure)}
+              Departure: {formatDateTime(schedule.departureTime)}
+            </p>
+            <p className="text-xs text-gray-500">
+              Arrival: {formatDateTime(schedule.arrivalTime)}
             </p>
           </div>
           <div className="text-left md:text-right">
             <div className="text-xs text-gray-500">Fare per seat</div>
             <div className="text-2xl font-bold text-primary-700">
               {formatCurrency(fare)}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {schedule.availableSeats} seats left
             </div>
           </div>
         </div>
@@ -167,7 +171,6 @@ const BusDetails = () => {
           />
         </div>
 
-        {/* Sticky summary */}
         <div>
           <Card className="p-5 sticky top-20">
             <h3 className="font-semibold text-gray-900 mb-3">Booking summary</h3>
@@ -182,13 +185,13 @@ const BusDetails = () => {
                 <div className="flex justify-between">
                   <span>Seat numbers</span>
                   <span className="font-medium text-gray-900">
-                    {selectedSeats.join(", ")}
+                    {selectedLabels}
                   </span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Fare per seat</span>
-                <span>{formatCurrency(fare)}</span>
+                <span className="text-gray-900">{formatCurrency(fare)}</span>
               </div>
               <hr className="my-2" />
               <div className="flex justify-between text-base">
@@ -210,7 +213,6 @@ const BusDetails = () => {
         </div>
       </div>
 
-      {/* Passenger details modal */}
       <Modal
         open={showPassengerModal}
         onClose={() => setShowPassengerModal(false)}
@@ -230,9 +232,7 @@ const BusDetails = () => {
           <Input
             label="Full name"
             value={passenger.name}
-            onChange={(event) =>
-              setPassenger({ ...passenger, name: event.target.value })
-            }
+            onChange={(e) => setPassenger({ ...passenger, name: e.target.value })}
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -241,31 +241,29 @@ const BusDetails = () => {
               min="1"
               max="120"
               value={passenger.age}
-              onChange={(event) =>
-                setPassenger({ ...passenger, age: event.target.value })
-              }
+              onChange={(e) => setPassenger({ ...passenger, age: e.target.value })}
             />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Gender
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 text-gray-900"
                 value={passenger.gender}
-                onChange={(event) =>
-                  setPassenger({ ...passenger, gender: event.target.value })
+                onChange={(e) =>
+                  setPassenger({ ...passenger, gender: e.target.value })
                 }
               >
-                <option value="M">Male</option>
-                <option value="F">Female</option>
-                <option value="O">Other</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
               </select>
             </div>
           </div>
           <div className="bg-primary-50 border border-primary-100 rounded-lg p-3 text-sm">
             <div className="flex justify-between">
               <span>Seats:</span>
-              <span className="font-medium">{selectedSeats.join(", ")}</span>
+              <span className="font-medium text-gray-900">{selectedLabels}</span>
             </div>
             <div className="flex justify-between mt-1">
               <span>Total amount:</span>

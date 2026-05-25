@@ -15,6 +15,38 @@ const STATUS_STYLES = {
   COMPLETED: "bg-gray-200 text-gray-700",
 };
 
+// Backend wraps in ApiResponse { success, message, data: [...] }
+const unwrapList = (response) => {
+  const payload = response.data?.data ?? response.data;
+  if (Array.isArray(payload)) return payload;
+  return payload?.content || [];
+};
+
+// Flatten the deep nested booking shape into something easy to render
+const flattenBooking = (booking) => ({
+  id: booking.id,
+  bookingReference: booking.bookingReference,
+  status: booking.bookingStatus || "CONFIRMED",
+  totalAmount: booking.totalAmount,
+  bookedAt: booking.bookedAt,
+  busName: booking.schedule?.bus?.busName,
+  busNumber: booking.schedule?.bus?.busNumber,
+  source: booking.schedule?.bus?.route?.sourceCity,
+  destination: booking.schedule?.bus?.route?.destinationCity,
+  travelDate: booking.schedule?.travelDate,
+  departureTime: booking.schedule?.departureTime,
+  arrivalTime: booking.schedule?.arrivalTime,
+  seatLabels: (booking.bookingSeats || [])
+    .map((bs) => bs.seat?.seatNumber)
+    .filter(Boolean),
+  passengers: (booking.bookingSeats || []).map((bs) => ({
+    name: bs.passengerName,
+    age: bs.passengerAge,
+    gender: bs.passengerGender,
+    seat: bs.seat?.seatNumber,
+  })),
+});
+
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,9 +57,10 @@ const MyBookings = () => {
     setLoading(true);
     bookingService
       .getUserBookings()
-      .then(({ data }) =>
-        setBookings(Array.isArray(data) ? data : data?.content || [])
-      )
+      .then((response) => {
+        const list = unwrapList(response).map(flattenBooking);
+        setBookings(list);
+      })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   };
@@ -40,7 +73,7 @@ const MyBookings = () => {
     if (!cancelTarget) return;
     setCancelling(true);
     try {
-      await bookingService.cancel(cancelTarget.id || cancelTarget.bookingId);
+      await bookingService.cancel(cancelTarget.id);
       toast.success("Booking cancelled");
       setCancelTarget(null);
       fetchBookings();
@@ -69,48 +102,68 @@ const MyBookings = () => {
       ) : (
         <div className="space-y-3">
           {bookings.map((booking) => {
-            const status = booking.status || "CONFIRMED";
             const isCancellable =
-              status !== "CANCELLED" && status !== "COMPLETED";
+              booking.status !== "CANCELLED" && booking.status !== "COMPLETED";
             return (
-              <Card
-                key={booking.id || booking.bookingId}
-                className="p-4 md:p-5"
-              >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <Card key={booking.id} className="p-4 md:p-5">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-gray-900">
-                        {booking.busName || booking.bus?.name || "Bus"}
+                        {booking.busName || "Bus"}
                       </h3>
+                      {booking.busNumber && (
+                        <span className="text-xs text-gray-500">
+                          • {booking.busNumber}
+                        </span>
+                      )}
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          STATUS_STYLES[status] || STATUS_STYLES.PENDING
+                          STATUS_STYLES[booking.status] || STATUS_STYLES.PENDING
                         }`}
                       >
-                        {status}
+                        {booking.status}
                       </span>
                     </div>
                     <p className="text-sm text-gray-700 mt-1">
-                      {booking.source || booking.from} →{" "}
-                      {booking.destination || booking.to}
+                      {booking.source || "—"} → {booking.destination || "—"}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {formatDateTime(
-                        booking.travelDate || booking.departureTime
-                      )}
+                      Departure: {formatDateTime(booking.departureTime)}
                     </p>
+                    {booking.bookingReference && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Ref:{" "}
+                        <span className="font-mono text-gray-700">
+                          {booking.bookingReference}
+                        </span>
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">
                       Seats:{" "}
                       <span className="font-medium text-gray-700">
-                        {(booking.seatNumbers || booking.seatIds || []).join(", ") ||
-                          "—"}
+                        {booking.seatLabels.length > 0
+                          ? booking.seatLabels.join(", ")
+                          : "—"}
                       </span>
                     </p>
+                    {booking.passengers.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        <span className="font-medium text-gray-700">
+                          Passengers:
+                        </span>{" "}
+                        {booking.passengers
+                          .map(
+                            (p) =>
+                              `${p.name} (${p.age}, ${p.gender}) — ${p.seat}`
+                          )
+                          .join("; ")}
+                      </div>
+                    )}
                   </div>
                   <div className="flex md:flex-col items-center md:items-end justify-between gap-2 md:gap-1">
                     <div className="text-lg font-bold text-primary-700">
-                      {formatCurrency(booking.totalAmount || booking.amount)}
+                      {formatCurrency(booking.totalAmount)}
                     </div>
                     {isCancellable && (
                       <Button
