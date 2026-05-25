@@ -1,8 +1,7 @@
 package com.bus.booking.bus.repository;
 
-package com.busbooking.bus.repository;
 
-import com.busbooking.bus.entity.Bus;
+import com.bus.booking.bus.entity.Bus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

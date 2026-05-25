@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.busbooking.notification.entity.Notification;
+import com.bus.booking.notification.entity.Notification;
 
 public interface NotificationRepository
         extends JpaRepository<Notification, Long> {

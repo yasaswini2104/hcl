@@ -1,5 +1,6 @@
 package com.bus.booking.bus.entity;
 import com.bus.booking.route.entity.Route;
+import com.bus.booking.seat.entity.Seat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
