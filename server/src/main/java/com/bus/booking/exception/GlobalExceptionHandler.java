@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
     ) {
 
         String message = ex.getBindingResult()
-                .getFieldError()
+                .getFieldError() 
                 .getDefaultMessage();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
