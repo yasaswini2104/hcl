@@ -16,18 +16,19 @@ A full-stack bus ticket booking platform built with **Spring Boot** (backend) an
 3. [Tech Stack](#-tech-stack)
 4. [Architecture](#-architecture)
 5. [Database Schema](#-database-schema)
-6. [Project Structure](#-project-structure)
-7. [Getting Started](#-getting-started)
-8. [API Documentation](#-api-documentation)
-9. [Authentication & Authorization](#-authentication--authorization)
-10. [Core Business Flows](#-core-business-flows)
-11. [Security Implementation](#-security-implementation)
-12. [Exception Handling](#-exception-handling)
-13. [Testing with Swagger](#-testing-with-swagger)
-14. [Screenshots](#-screenshots)
-15. [Future Enhancements](#-future-enhancements)
-16. [Contributing](#-contributing)
-17. [License](#-license)
+6. [Documentation](#-documentation)
+7. [Project Structure](#-project-structure)
+8. [Getting Started](#-getting-started)
+9. [API Documentation](#-api-documentation)
+10. [Authentication & Authorization](#-authentication--authorization)
+11. [Core Business Flows](#-core-business-flows)
+12. [Security Implementation](#-security-implementation)
+13. [Exception Handling](#-exception-handling)
+14. [Testing with Swagger](#-testing-with-swagger)
+15. [Screenshots](#-screenshots)
+16. [Future Enhancements](#-future-enhancements)
+17. [Contributing](#-contributing)
+18. [License](#-license)
 
 ---
 
@@ -222,6 +223,19 @@ users ────< audit_logs
 
 - **Primary keys**: `BIGINT AUTO_INCREMENT` (`@GeneratedValue(strategy = IDENTITY)`) — fast, compact, ideal for joins
 - **Booking reference**: `UUID v4` — unguessable, user-facing identifier shown in emails and support tickets
+
+---
+
+##  Documentation
+
+All detailed design and architecture documentation is available in the [`docs/`](docs) folder:
+
+| Document | Description |
+|----------|-------------|
+| [SystemDesign.pdf](docs/SystemDesign.pdf) | Complete system architecture, design patterns, components interaction, and technical decisions |
+| [DB_Diagram.pdf](docs/DB_Diagram.pdf) | Database schema diagram with entity relationships and field mappings |
+
+These documents provide comprehensive insights into the system's architecture, design patterns, and database structure for developers and stakeholders.
 
 ---
 
